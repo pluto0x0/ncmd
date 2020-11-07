@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Muses</string>
+   <string>ncmd - NeteaseCloudMusic Downloader</string>
   </property>
   <property name="statusTip">
    <string/>

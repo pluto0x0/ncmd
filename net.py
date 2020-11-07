@@ -227,7 +227,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Muses"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ncmd - NeteaseCloudMusic Downloader"))
         self.userLB.setText(_translate("MainWindow", "User"))
         self.idEdit.setPlaceholderText(_translate("MainWindow", "请输入id或歌单链接"))
         self.queryBtn.setText(_translate("MainWindow", "查询"))
