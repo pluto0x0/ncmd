@@ -12,3 +12,4 @@ aria2.err
 build/
 dist/
 *.spec
+my.exe
