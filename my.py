@@ -1,16 +1,18 @@
 # TODO：m3u8文件名格式、歌曲名格式
 
 # ui（pyqt）相关
-'''
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QAbstractItemView, QTableWidgetItem, QWidget, QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QPushButton
 from PyQt5.Qt import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
-from PyQt5.QtCore import Qt, QObject, QSize
+from PyQt5.QtCore import Qt, QObject, QSize, QMutex
+
 '''
 from PyQt5.QtWidgets import *
 from PyQt5.Qt import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+'''
 import qtawesome as qta
 
 import mutagen.flac, mutagen.id3
@@ -52,6 +54,10 @@ NoCache = False
 
 # path = r'C:\Users\user\Desktop\NEW'
 path = r'NEW'
+
+if not os.path.exists(path):
+    os.mkdir(path)
+
 rpcServer = rpc.ServerProxy('http://localhost:6888/rpc')
 
 confName = 'config.conf'
@@ -84,7 +90,7 @@ aria2 = None
 
 def startAria2():
     global aria2
-    aria2 = subprocess.Popen([r'aria2c',r'--conf-path',r'aria2.conf'])
+    aria2 = subprocess.Popen([r'aria2c',r'--conf-path',r'aria2.conf'],creationflags = subprocess.CREATE_NO_WINDOW, stdout=open('aria2.log','a'), stderr=open('aria2.err','a'), stdin=subprocess.PIPE)
     # QMessageBox.critical(self, '错误', 'aria2 启动失败，请重试。')
 
 
@@ -594,7 +600,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         # self.genM3u8()
         # return
 
-        self.mutidown = mutiGet(max_conn=9)
+        self.mutidown = mutiGet(max_conn=3)
         fileList = os.listdir(path)
 
         def addTask(ext, url):
@@ -660,6 +666,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         myitem.progressBar.setRange(1, int(ret['totalLength']))
         myitem.progressBar.setValue(int(ret['completedLength']))
         myitem.speedLabel.setText(f'{int(ret["downloadSpeed"])/1024:.2f}KiB/s')
+        
 
     # 请求歌单方法
     def query(self):

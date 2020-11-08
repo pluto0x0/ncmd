@@ -1,4 +1,3 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 aria2.session
 *.m3u8
@@ -7,3 +6,9 @@ test*
 NEW/*
 !NEW/.gitkeep
 .vscode/
+aria2.log
+aria2.err
+# pyinstaller
+build/
+dist/
+*.spec
