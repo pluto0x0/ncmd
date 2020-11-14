@@ -2,7 +2,7 @@
 
 # ui（pyqt）相关
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QAbstractItemView, QTableWidgetItem, QWidget, QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QPushButton
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QAbstractItemView, QTableWidgetItem, QWidget, QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QPushButton, QFileDialog
 from PyQt5.Qt import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
 from PyQt5.QtCore import Qt, QObject, QSize, QMutex
@@ -398,6 +398,7 @@ class mutiGet(QObject):
 # 主窗口类
 class mainWin(QMainWindow, net.Ui_MainWindow):
     songs = [{}]
+    listName = '歌单名称'
 
     def __init__(self, parent=None):
         # 固定用法
