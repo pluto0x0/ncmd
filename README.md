@@ -11,7 +11,14 @@ NCMD - Netease Cloud Music Downloader，一个高效网易云音乐™下载、�
 - [mutagen](https://pypi.org/project/mutagen/)
 - [aria2](https://github.com/aria2/aria2)
 
-pyinstaller构建：
+# 构建
+## 安装依赖
+```
+pip install -r requirements.txt
+```
+
+## pyinstaller打包：
+
 ```
 pyinstaller -Fw my.py
 ```
