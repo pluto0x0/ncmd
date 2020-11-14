@@ -53,7 +53,10 @@ MAXLEN = 50
 NoCache = False
 
 # path = r'C:\Users\user\Desktop\NEW'
-path = r'NEW'
+path = r'./NEW'
+path = os.path.abspath(path)
+
+MAXC = 6
 
 if not os.path.exists(path):
     os.mkdir(path)
@@ -461,6 +464,9 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
         self.m3u8Btn.clicked.connect(self.genM3u8)
         
+        self.pathLB.setText(path)
+        self.pathBtn.clicked.connect(self.changePath)
+
         self.aria2Action.triggered.connect(self.restartAria2)
         startAria2()
 
@@ -597,11 +603,16 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         aria2.kill()
         event.accept()
 
+    def changePath(self):
+        global path
+        path = QFileDialog.getExistingDirectory(self, '选择下载目录', path)
+        self.pathLB.setText(path)
+
     def test(self):
         # self.genM3u8()
         # return
 
-        self.mutidown = mutiGet(max_conn=3)
+        self.mutidown = mutiGet(max_conn=MAXC)
         fileList = os.listdir(path)
 
         def addTask(ext, url):
