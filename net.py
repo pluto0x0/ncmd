@@ -245,6 +245,8 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
         self.brBox.setCurrentIndex(-1)
+        self.tagCheck.clicked['bool'].connect(self.picCheck.setChecked)
+        self.tagCheck.clicked['bool'].connect(self.picCheck.setDisabled)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

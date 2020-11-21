@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QAb
 from PyQt5.Qt import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
 from PyQt5.QtCore import Qt, QObject, QSize, QMutex
-
 '''
 from PyQt5.QtWidgets import *
 from PyQt5.Qt import *
@@ -14,9 +13,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 '''
 import qtawesome as qta
-
+import json
 import mutagen.flac, mutagen.id3
-
 
 import xmlrpc.client as rpc
 # ui
@@ -43,44 +41,53 @@ import sys
 
 import subprocess
 
-BASEURL = 'http://app.yzzzf.xyz:3000'
-# BASEURL = 'http://localhost:3000'
-cookie = ''
-nickname = ''
-avatarUrl = ''
-patternStr = r'{artist}-{name}-{album}'
-MAXLEN = 50
-NoCache = False
+conf = {
+    'baseURL': 'http://app.yzzzf.xyz:3000',
+    'loginName':'',
+    'cookie': '',
+    'nickname': '',
+    'avatarURL': '',
+    'patternStr': '{artist}-{name}-{album}',
+    'maxLen': 50,
+    'maxDownload': 6,
+    'lrcType': 3, # 1 origin     2 translate    3 merge
+    'noneLyric': r'[00:00.000]纯音乐，请您欣赏',
+    'path': os.path.abspath('./output')
+}
 
-# path = r'C:\Users\user\Desktop\NEW'
-path = r'./NEW'
-path = os.path.abspath(path)
+# conf['baseURL'] = 'http://localhost:3000'
+# NoCache = False
 
-MAXC = 6
-
-if not os.path.exists(path):
-    os.mkdir(path)
+if not os.path.exists(conf['path']):
+    os.mkdir(conf['path'])
 
 rpcServer = rpc.ServerProxy('http://localhost:6888/rpc')
 
-confName = 'config.conf'
+confName = 'config.json'
 
-lrcType = 3  # 1 origin     2 translate    3 merge
-NoneLyric = r'[00:00.000]纯音乐，请您欣赏'
+try:
+    with open(confName,encoding='utf-8') as confFile:
+        conf = json.loads(confFile.read())
+except FileNotFoundError:
+    pass
+except json.decoder.JSONDecodeError:
+    pass
 
 import re
-rr = re.compile(r'^(\[\d+:\d+\.\d+\])',re.M)
-def lrcMerge(a,b):
+rr = re.compile(r'^(\[\d+:\d+\.\d+\])', re.M)
+
+def lrcMerge(a, b):
     aa = rr.split(a)
     bb = rr.split(b)
     out = ''
-    for i in range(1,len(aa),2):
+    for i in range(1, len(aa), 2):
         try:
             index = bb.index(aa[i])
             aa[i + 1] = aa[i + 1][:-1] + ' ' + bb[index + 1]
         except ValueError:
             pass
     return ''.join(aa)
+
 
 # 文件名转换函数
 def fileStr(str):
@@ -93,7 +100,11 @@ aria2 = None
 
 def startAria2():
     global aria2
-    aria2 = subprocess.Popen([r'aria2c',r'--conf-path',r'aria2.conf'],creationflags = subprocess.CREATE_NO_WINDOW, stdout=open('aria2.log','a'), stderr=open('aria2.err','a'), stdin=subprocess.PIPE)
+    aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
+                             creationflags=subprocess.CREATE_NO_WINDOW,
+                             stdout=open('aria2.log', 'a'),
+                             stderr=open('aria2.err', 'a'),
+                             stdin=subprocess.PIPE)
     # QMessageBox.critical(self, '错误', 'aria2 启动失败，请重试。')
 
 
@@ -102,18 +113,23 @@ class ChildWindow(QDialog, login.Ui_Dialog):
     def __init__(self):
         super(ChildWindow, self).__init__()
         self.setupUi(self)
-        self.skipBtn.clicked.connect(lambda: self.close())
+        self.skipBtn.clicked.connect(self.close)
         self.loginBtn.clicked.connect(self.login)
         txtChange = lambda: self.loginBtn.setEnabled(self.actEdit.text() != '' and self.pwdEdit.text() != '')
         txtChange()
         self.actEdit.textChanged.connect(txtChange)
         self.pwdEdit.textChanged.connect(txtChange)
+        try:
+            self.actEdit.setText(conf['loginName'])
+        except KeyError:
+            pass
 
     # 登录请求
     def login(self):
+        conf['loginName'] = self.actEdit.text()
         self.loginBtn.setEnabled(False)
         usePhone = self.isPhone.isChecked()
-        self.get = Get(BASEURL + '/login/' + ('cellphone' if usePhone else 'email'),
+        self.get = Get(conf['baseURL'] + '/login/' + ('cellphone' if usePhone else 'email'),
                        params={
                            ('phone' if usePhone else 'email'): self.actEdit.text(),
                            'password': self.pwdEdit.text()
@@ -125,12 +141,14 @@ class ChildWindow(QDialog, login.Ui_Dialog):
     def _login(self, data):
         # print(repr(data))
         if data['code'] == 200:
+            '''
             global nickname
             global cookie
             global avatarUrl
-            nickname = data['profile']['nickname']
-            cookie = data['cookie']
-            avatarUrl = data['profile']['avatarUrl']
+            '''
+            conf['nickname'] = data['profile']['nickname']
+            conf['cookie'] = data['cookie']
+            conf['avatarURL'] = data['profile']['avatarUrl']
 
             self.accept()
         else:
@@ -176,10 +194,13 @@ class MyItem(QWidget, listItem.Ui_Form):
         self.deleteButton.setIcon(qta.icon('fa.trash-o', scale_factor=1))
         self.pauseButton.setIcon(qta.icon('fa.pause', scale_factor=1))
 
+
 class writeTag(QThread):
     always = pyqtSignal(str)
 
-    def __init__(self, songs,config={'ID3v2x':3,}):
+    def __init__(self, songs, config={
+        'ID3v2x': 3,
+    }):
         super().__init__()
         self.songs = songs
         self.config = config
@@ -192,7 +213,7 @@ class writeTag(QThread):
             try:
                 if song['type'] == 'mp3':
                     tag = mutagen.id3.ID3()
-                    img = open(path + '/' + song['filename'] + '.jpg', 'rb')
+                    img = open(conf['path'] + '/' + song['filename'] + '.jpg', 'rb')
                     if self.config['ID3v2x'] == '3':
                         tag.update_to_v23()
                     tag['APIC'] = mutagen.id3.APIC(  #插入专辑图片
@@ -210,13 +231,11 @@ class writeTag(QThread):
                     tag['TYER'] = mutagen.id3.TYER(  #插入专辑名称
                         encoding=3, text=[song['year']])
                     v2x = int(self.config['ID3v2x'])
-                    tag.save(path + '/' + song['filename'] + '.mp3',
-                            v1=int(config['tags']['WriteID1']),
-                            v2_version=v2x)
+                    tag.save(conf['path'] + '/' + song['filename'] + '.mp3', v1=int(config['tags']['WriteID1']), v2_version=v2x)
                     img.close()
 
                 elif song['type'] == 'flac':
-                    audio = mutagen.flac.FLAC(path + '/' + song['filename'] + '.flac')
+                    audio = mutagen.flac.FLAC(conf['path'] + '/' + song['filename'] + '.flac')
                     audio.delete()
                     audio['title'] = song['name']
                     audio['album'] = song['album']
@@ -224,7 +243,7 @@ class writeTag(QThread):
                     audio['date'] = song['year']
 
                     img = mutagen.flac.Picture()
-                    with open(path + '/' + song['filename'] + '.jpg', 'rb') as fil:
+                    with open(conf['path'] + '/' + song['filename'] + '.jpg', 'rb') as fil:
                         img.data = fil.read()
                     img.type = mutagen.id3.PictureType.COVER_FRONT
                     img.mime = u"image/jpeg"
@@ -237,6 +256,7 @@ class writeTag(QThread):
             except BaseException as e:
                 ret = f'写入错误:{repr(e)}。'
             self.always.emit(f'{song["filename"]}.{song["type"]} {ret}')
+
 
 # get请求线程类
 class Get(QThread):  # 线程1
@@ -321,7 +341,7 @@ class Download(QThread):
         self.pause.emit(self.myItem, self.paused)
 
     def onFolder(self):
-        pt = os.path.abspath(f'{path}\{self.filename}')
+        pt = os.path.abspath(f"{conf['path']}\{self.filename}")
         os.system(f'explorer /e,/select,"{pt}"')
         print(f'explorer /e,/select,"{pt}"')
 
@@ -363,7 +383,7 @@ class MyTableWidgetItem(QTableWidgetItem):
 
 
 # 多任务get请求
-class mutiGet(QObject):
+class multiGet(QObject):
     final = pyqtSignal()
 
     def __init__(self, max_conn=5):
@@ -444,6 +464,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.METAAction.setIcon(qta.icon('mdi.file-music-outline', scale_factor=1.25))
         self.aria2Action.setIcon(qta.icon('ei.refresh', scale_factor=1))
         # 检查配置
+        '''
         global confName
         if not os.path.exists(confName):
             print('配置文件不存在，自动下载默认配置...')
@@ -456,6 +477,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
             self.get.success.connect(self.writeConf)
             self.get.fail.connect(lambda: self.close())
             self.get.start()
+        '''
 
         self.groupBox.setVisible(False)
         self.proBtn.clicked.connect(self.displayPro)
@@ -463,12 +485,15 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.testBtn.setIcon(qta.icon('fa.download'))
 
         self.m3u8Btn.clicked.connect(self.genM3u8)
-        
-        self.pathLB.setText(path)
+
+        self.pathLB.setText(conf['path'])
         self.pathBtn.clicked.connect(self.changePath)
 
         self.aria2Action.triggered.connect(self.restartAria2)
         startAria2()
+
+        if conf['cookie'] != '':
+            self.loginDone()
 
     def restartAria2(self):
         aria2.kill()
@@ -477,7 +502,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     def updateFileName(self):
         for i in range(len(self.songs)):
-            self.songs[i]['filename'] = fileStr(patternStr.format(**self.songs[i]))
+            self.songs[i]['filename'] = fileStr(conf['patternStr'].format(**self.songs[i]))
             self.tableWidget.setItem(i, 6, MyTableWidgetItem(self.songs[i]['filename']))
 
     # 写入配置方法
@@ -510,20 +535,23 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.lists.show()
         return super().mousePressEvent(e)
 
+    def loginDone(self):
+        self.get = Get(conf['avatarURL'], is_json=False)
+        self.get.success.connect(self.displayImg)
+        self.get.start()
+
     # 用户登录方法
     def login(self):
         self.statusBar().showMessage('用户登录')
         login = ChildWindow()
         if login.exec_() == login.Accepted:
-            print(cookie)
-            self.get = Get(avatarUrl, is_json=False)
-            self.get.start()
-            self.get.success.connect(self.displayImg)
+            print(conf['cookie'])
+            self.loginDone()
         login.destroy()
 
     # 显示用户头像方法
     def displayImg(self, data):
-        mutex.lock()
+        # mutex.lock()
         img = QPixmap()
         img.loadFromData(data.content)
         img = img.scaled(50, 50, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
@@ -538,15 +566,17 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         painter.setClipPath(path)
         painter.drawPixmap(0, 0, img)
         self.AvatarLB.setPixmap(self.canvas)
-        self.userLB.setText(nickname)
-        mutex.unlock()
+        self.userLB.setText(conf['nickname'])
+        # mutex.unlock()
 
     # 生成m3u8歌单
     def genM3u8(self):
         # https://www.cnblogs.com/xiyuan2016/p/7218203.html
         # https://cloud.tencent.com/developer/article/1487084
         filename = fileStr(self.listName)
-        file_path,file_type =  QFileDialog.getSaveFileName(self,'保存m3u8歌单',f'{os.path.abspath(path)}\\{filename}.m3u8' ,'播放多媒体列表 (*.m3u8);;所有文件(*.*)')
+        file_path, file_type = QFileDialog.getSaveFileName(self, '保存m3u8歌单',
+                                                           f"{os.path.abspath(conf['path'])}\\{filename}.m3u8",
+                                                           '播放多媒体列表 (*.m3u8);;所有文件(*.*)')
         with open(file_path, 'w', encoding='utf8') as f:
             f.write('#EXTM3U\n')
             for i in self.songs:
@@ -578,7 +608,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         lrc = ''
         try:
             if data['nolyric']:
-                lrc = NoneLyric
+                lrc = conf['noneLyric']
         except KeyError:
             try:
                 tlrc = data['tlyric']['lyric']
@@ -595,25 +625,26 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
             except KeyError:
                 pass
         finally:
-            with open(f'{path}/{filename}', 'w', encoding='utf-8') as file:
+            with open(f"{conf['path']}/{filename}", 'w', encoding='utf-8') as file:
                 file.write(lrc)
         self.statusBar().showMessage(filename + '完成。')
 
-    def closeEvent(self,event):
+    def closeEvent(self, event):
         aria2.kill()
+        with open(confName,'w',encoding='utf-8') as confFile:
+            confFile.write(json.dumps(conf, sort_keys=False, indent=4))
         event.accept()
 
     def changePath(self):
-        global path
-        path = QFileDialog.getExistingDirectory(self, '选择下载目录', path)
-        self.pathLB.setText(path)
+        conf['path'] = QFileDialog.getExistingDirectory(self, '选择下载目录', conf['path'])
+        self.pathLB.setText(conf['path'])
 
     def test(self):
         # self.genM3u8()
         # return
 
-        self.mutidown = mutiGet(max_conn=MAXC)
-        fileList = os.listdir(path)
+        self.mutidown = multiGet(max_conn=conf['maxDownload'])
+        fileList = os.listdir(conf['path'])
 
         def addTask(ext, url):
             # 'i' in self.songs
@@ -623,7 +654,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
                 self.statusBar().showMessage(f'跳过{filename}，已存在。')
                 return
             task = Download(self.setupItem(filename), [url], {
-                'dir': os.path.abspath(path),
+                'dir': os.path.abspath(conf['path']),
                 'out': f"{i['filename']}.{ext}"
             })
             task.updateUI.connect(self.updateList)
@@ -641,13 +672,13 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
                 addTask('jpg', i['pic'])
 
         if self.lrcCheck.isChecked():
-            self.lrcGet = mutiGet(max_conn=5)
+            self.lrcGet = multiGet(max_conn=5)
             for i in self.songs:
-                filename = i['filename']+'.lrc'
+                filename = i['filename'] + '.lrc'
                 if self.skipCheck.isChecked() and filename in fileList:
                     self.statusBar().showMessage(f'跳过{filename}，已存在。')
                     continue
-                task = Get(f"{BASEURL}/lyric", params={'id': i['id']}, data=filename)
+                task = Get(f"{conf['baseURL']}/lyric", params={'id': i['id']}, data=filename)
                 task.success.connect(self._getLrc)
                 self.lrcGet.add(task)
             self.lrcGet.start()
@@ -657,7 +688,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         # self.writeTag()
 
     def writeTag(self):
-        fileList = os.listdir(path)
+        fileList = os.listdir(conf['path'])
         if self.tagCheck.isChecked():
             self.tagwriter = writeTag(filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
             self.tagwriter.always.connect(lambda ret: self.statusBar().showMessage(ret))
@@ -678,7 +709,6 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         myitem.progressBar.setRange(1, int(ret['totalLength']))
         myitem.progressBar.setValue(int(ret['completedLength']))
         myitem.speedLabel.setText(f'{int(ret["downloadSpeed"])/1024:.2f}KiB/s')
-        
 
     # 请求歌单方法
     def query(self):
@@ -699,12 +729,12 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         if re.search(r'album', id) != None:
             id = re.search(r'album\?id=([0-9]+)', id).group(1)
             # self.idEdit.setText(id)
-            self.getLists = Get(BASEURL + '/album', params={'id': id}, data='album')
+            self.getLists = Get(conf['baseURL'] + '/album', params={'id': id}, data='album')
         else:
             if re.search(r'id', id) != None:
                 id = re.search(r'id=([0-9]+)', id).group(1)
                 self.idEdit.setText(id)
-            self.getLists = Get(BASEURL + '/playlist/detail', params={'id': id},data='playlist')
+            self.getLists = Get(conf['baseURL'] + '/playlist/detail', params={'id': id}, data='playlist')
         self.getLists.start()
         self.getLists.success.connect(self._query)
 
@@ -738,18 +768,25 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         # print(repr(songids))
         cur_br = [180000, 320000, 999000][self.brBox.currentIndex()]
         self.brBox.setEnabled(False)
-        self.mget = mutiGet()
+        self.mget = multiGet()
         self.songs_d = []
 
-        for i in range(0, len(self.songs), MAXLEN):
-            ids = ','.join(songids[i:i + MAXLEN])
+        for i in range(0, len(self.songs), conf['maxLen']):
+            ids = ','.join(songids[i:i + conf['maxLen']])
             # 获取音乐信息
             # TODO!!!!!!!!!!!!!!!!!
-            get = Get(BASEURL + '/song/detail', params={'ids': ids}, data={'no': i}, NoCache=True)  # no：序号
+            get = Get(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i}, NoCache=True)  # no：序号
             get.success.connect(self._each)
             self.mget.add(get)
             # 获取音乐URL
-            get = Get(BASEURL + '/song/url', params={'id': ids, 'cookie': cookie, 'br': cur_br}, data={'no': i}, NoCache=True)
+            get = Get(conf['baseURL'] + '/song/url',
+                      params={
+                          'id': ids,
+                          'cookie': conf['cookie'],
+                          'br': cur_br
+                      },
+                      data={'no': i},
+                      NoCache=True)
             get.success.connect(self._each_url)
             self.mget.add(get)
         self.mget.final.connect(self.qDone)
@@ -758,11 +795,11 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         for i in range(self.len):
             song = {'id': songids[i]}
             # 获取音乐信息
-            get = Get(BASEURL + '/song/detail', params={'ids': song['id']}, data={'id': i})
+            get = Get(conf['baseURL'] + '/song/detail', params={'ids': song['id']}, data={'id': i})
             get.success.connect(self._each)
             self.mget.add(get)
             # 获取音乐URL
-            get = Get(BASEURL + '/song/url', params={'id': song['id'], 'cookie': cookie, 'br': cur_br})
+            get = Get(conf['baseURL'] + '/song/url', params={'id': song['id'], 'cookie': conf['cookie'], 'br': cur_br})
             get.success.connect(self._each_url)
             self.mget.add(get)
         '''
@@ -789,7 +826,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
             '''
 
             song['artist'] = ','.join(song['artists'])
-            song['filename'] = fileStr(patternStr.format(**song))
+            song['filename'] = fileStr(conf['patternStr'].format(**song))
 
             self.songs[no].update(song)
 
@@ -844,7 +881,7 @@ class patternWindow(QDialog, pattern.Ui_Dialog):
         super().__init__()
         self.setupUi(self)
         global patternStr
-        self.patternEdit.setText(patternStr)
+        self.patternEdit.setText(conf['patternStr'])
         self.patternCombo.addItems(['标题', '艺术家', '专辑', '年份', '序号'])
         self.insertBtn.clicked.connect(self.insert)
         self.exitBtn.clicked.connect(lambda: self.reject())
@@ -858,8 +895,9 @@ class patternWindow(QDialog, pattern.Ui_Dialog):
     # 确认保存并退出方法
     def ok(self):
         global patternStr
-        patternStr = self.patternEdit.text()
+        conf['patternStr'] = self.patternEdit.text()
         self.accept()
+
 
 # 主函数
 if __name__ == '__main__':

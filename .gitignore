@@ -8,6 +8,7 @@ NEW/*
 .vscode/
 aria2.log
 aria2.err
+config.json
 # pyinstaller
 build/
 dist/

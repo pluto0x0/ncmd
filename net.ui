@@ -461,5 +461,38 @@
   </action>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>tagCheck</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>picCheck</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>454</x>
+     <y>681</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>237</x>
+     <y>627</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tagCheck</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>picCheck</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>500</x>
+     <y>680</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>264</x>
+     <y>631</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
