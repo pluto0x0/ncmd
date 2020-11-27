@@ -230,8 +230,11 @@ class writeTag(QThread):
                         encoding=3, text=[song['name']])
                     tag['TYER'] = mutagen.id3.TYER(  #插入专辑名称
                         encoding=3, text=[song['year']])
-                    v2x = int(self.config['ID3v2x'])
-                    tag.save(conf['path'] + '/' + song['filename'] + '.mp3', v1=int(config['tags']['WriteID1']), v2_version=v2x)
+
+                    v2x = 4
+                    WriteID1 = 1
+
+                    tag.save(conf['path'] + '/' + song['filename'] + '.mp3', v1=WriteID1, v2_version=v2x)
                     img.close()
 
                 elif song['type'] == 'flac':
