@@ -41,6 +41,8 @@ import sys
 
 import subprocess
 
+CHECKS = ['songCheck','picCheck','lrcCheck','skipCheck','tagCheck','radioButton','radioButton_2','radioButton_3']
+
 conf = {
     'baseURL': 'http://app.yzzzf.xyz:3000',
     'loginName':'',
@@ -50,11 +52,17 @@ conf = {
     'patternStr': '{artist}-{name}-{album}',
     'maxLen': 50,
     'maxDownload': 6,
-    'lrcType': 3, # 1 origin     2 translate    3 merge
     'noneLyric': r'[00:00.000]纯音乐，请您欣赏',
-    'path': os.path.abspath('./output')
+    'path': os.path.abspath('./output'),
+    'widget':{
+        'checks':{check: True for check in CHECKS}
+        # 'lrcType': 3
+            # 1 origin
+            # 2 translate
+            # 3 merge
+    }
 }
-
+print(conf['widget']['checks'])
 # conf['baseURL'] = 'http://localhost:3000'
 # NoCache = False
 
@@ -481,7 +489,6 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
             self.get.fail.connect(lambda: self.close())
             self.get.start()
         '''
-
         self.groupBox.setVisible(False)
         self.proBtn.clicked.connect(self.displayPro)
         self.proBtn.setIcon(qta.icon('fa.chevron-down'))
@@ -494,6 +501,9 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
         self.aria2Action.triggered.connect(self.restartAria2)
         startAria2()
+
+        for check in CHECKS:
+            eval(f"self.{check}.setChecked({str(conf['widget']['checks'][check])})")
 
         if conf['cookie'] != '':
             self.loginDone()
@@ -634,6 +644,8 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     def closeEvent(self, event):
         aria2.kill()
+        for check in CHECKS:
+            conf['widget']['checks'][check] = eval(f"self.{check}.isChecked()")
         with open(confName,'w',encoding='utf-8') as confFile:
             confFile.write(json.dumps(conf, sort_keys=False, indent=4))
         event.accept()
