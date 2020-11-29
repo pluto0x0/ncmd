@@ -41,11 +41,11 @@ import sys
 
 import subprocess
 
-CHECKS = ['songCheck','picCheck','lrcCheck','skipCheck','tagCheck','radioButton','radioButton_2','radioButton_3']
+CHECKS = ['songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'radioButton', 'radioButton_2', 'radioButton_3']
 
 conf = {
     'baseURL': 'http://app.yzzzf.xyz:3000',
-    'loginName':'',
+    'loginName': '',
     'cookie': '',
     'nickname': '',
     'avatarURL': '',
@@ -54,12 +54,13 @@ conf = {
     'maxDownload': 6,
     'noneLyric': r'[00:00.000]纯音乐，请您欣赏',
     'path': os.path.abspath('./output'),
-    'widget':{
-        'checks':{check: True for check in CHECKS}
+    'widget': {
+        'checks': {check: True
+                   for check in CHECKS}
         # 'lrcType': 3
-            # 1 origin
-            # 2 translate
-            # 3 merge
+        # 1 origin
+        # 2 translate
+        # 3 merge
     }
 }
 print(conf['widget']['checks'])
@@ -74,7 +75,7 @@ rpcServer = rpc.ServerProxy('http://localhost:6888/rpc')
 confName = 'config.json'
 
 try:
-    with open(confName,encoding='utf-8') as confFile:
+    with open(confName, encoding='utf-8') as confFile:
         conf = json.loads(confFile.read())
 except FileNotFoundError:
     pass
@@ -83,6 +84,7 @@ except json.decoder.JSONDecodeError:
 
 import re
 rr = re.compile(r'^(\[\d+:\d+\.\d+\])', re.M)
+
 
 def lrcMerge(a, b):
     aa = rr.split(a)
@@ -104,7 +106,9 @@ def fileStr(str):
         str = str.replace(key, dic[key])
     return str
 
+
 aria2 = None
+
 
 def startAria2():
     global aria2
@@ -205,6 +209,7 @@ class MyItem(QWidget, listItem.Ui_Form):
 
 class writeTag(QThread):
     always = pyqtSignal(str)
+    final = pyqtSignal()
 
     def __init__(self, songs, config={
         'ID3v2x': 3,
@@ -214,7 +219,6 @@ class writeTag(QThread):
         self.config = config
 
     def run(self):
-        print('!!!!!!!!!!')
         for song in self.songs:
             ret = '写入完成。'
             print(song['name'])
@@ -267,6 +271,42 @@ class writeTag(QThread):
             except BaseException as e:
                 ret = f'写入错误:{repr(e)}。'
             self.always.emit(f'{song["filename"]}.{song["type"]} {ret}')
+        self.final.emit()
+
+
+class writeLrc(QThread):
+    always = pyqtSignal(str)
+    res = {}
+    lrcType = ()
+
+    def __init__(self, res, lrcType=(True, False, False)):
+        super().__init__()
+        self.res = res
+        self.lrcType = lrcType
+
+    def run(self):
+        data = self.res['ret']
+        filename = self.res['data']
+        lrc = ''
+        try:
+            if data['nolyric']:
+                lrc = conf['noneLyric']
+        except KeyError:
+            try:
+                tlrc = data['tlyric']['lyric']
+                rlrc = data['lrc']['lyric']
+                if self.lrcType[0]:
+                    lrc = rlrc
+                elif self.lrcType[1]:
+                    lrc = rlrc if tlrc == None else tlrc
+                elif self.lrcType[2]:
+                    lrc = lrcMerge(rlrc, tlrc)
+            except KeyError:
+                pass
+        finally:
+            with open(f"{conf['path']}/{filename}", 'w', encoding='utf-8') as file:
+                file.write(lrc)
+        self.always.emit(f'{filename}写入完成。')
 
 
 # get请求线程类
@@ -614,39 +654,19 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.taskList.setItemWidget(listitem, myitem)
         return (myitem, listitem)
 
+    lrcTask = multiGet()
+
     def _getLrc(self, res):
-        print('11')
-        data = res['ret']
-        filename = res['data']
-        lrc = ''
-        try:
-            if data['nolyric']:
-                lrc = conf['noneLyric']
-        except KeyError:
-            try:
-                tlrc = data['tlyric']['lyric']
-                rlrc = data['lrc']['lyric']
-                if self.radioButton.isChecked():
-                    lrc = rlrc
-                elif self.radioButton_2.isChecked():
-                    lrc = rlrc if tlrc == None else tlrc
-                elif self.radioButton_3.isChecked():
-                    # print(rlrc)
-                    # print(tlrc)
-                    lrc = lrcMerge(rlrc, tlrc)
-                    # print(lrc)
-            except KeyError:
-                pass
-        finally:
-            with open(f"{conf['path']}/{filename}", 'w', encoding='utf-8') as file:
-                file.write(lrc)
-        self.statusBar().showMessage(filename + '完成。')
+        lrcWriter = writeLrc(
+            res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()))
+        lrcWriter.always.connect(self.statusBar().showMessage)
+        self.lrcTask.add(lrcWriter)
 
     def closeEvent(self, event):
         aria2.kill()
         for check in CHECKS:
             conf['widget']['checks'][check] = eval(f"self.{check}.isChecked()")
-        with open(confName,'w',encoding='utf-8') as confFile:
+        with open(confName, 'w', encoding='utf-8') as confFile:
             confFile.write(json.dumps(conf, sort_keys=False, indent=4))
         event.accept()
 
@@ -696,6 +716,8 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
                 task = Get(f"{conf['baseURL']}/lyric", params={'id': i['id']}, data=filename)
                 task.success.connect(self._getLrc)
                 self.lrcGet.add(task)
+            self.lrcTask.final.connect(lambda: self.statusBar().showMessage('所有歌词完成。'))
+            self.lrcGet.final.connect(self.lrcTask.start)
             self.lrcGet.start()
 
         self.mutidown.final.connect(self.writeTag)
@@ -707,6 +729,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         if self.tagCheck.isChecked():
             self.tagwriter = writeTag(filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
             self.tagwriter.always.connect(lambda ret: self.statusBar().showMessage(ret))
+            self.tagwriter.final.connect(lambda: self.statusBar().showMessage('所有标签写入完成。'))
             self.tagwriter.start()
         self.statusBar().showMessage('所有任务完成。')
 

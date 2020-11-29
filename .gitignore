@@ -9,6 +9,7 @@ NEW/*
 aria2.log
 aria2.err
 config.json
+output/
 # pyinstaller
 build/
 dist/
