@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>875</width>
-    <height>853</height>
+    <height>841</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,7 +69,7 @@
       <item>
        <widget class="QLabel" name="listNameLB">
         <property name="text">
-         <string> </string>
+         <string/>
         </property>
        </widget>
       </item>
@@ -202,6 +202,13 @@
               <widget class="QCheckBox" name="tagCheck">
                <property name="text">
                 <string>写入mp3tag</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="lrcFormatCheck">
+               <property name="text">
+                <string>歌词格式化</string>
                </property>
               </widget>
              </item>

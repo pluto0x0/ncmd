@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(875, 853)
+        MainWindow.resize(875, 841)
         MainWindow.setStatusTip("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -41,6 +41,7 @@ class Ui_MainWindow(object):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem)
         self.listNameLB = QtWidgets.QLabel(self.centralwidget)
+        self.listNameLB.setText("")
         self.listNameLB.setObjectName("listNameLB")
         self.horizontalLayout_3.addWidget(self.listNameLB)
         self.verticalLayout_5.addLayout(self.horizontalLayout_3)
@@ -105,6 +106,9 @@ class Ui_MainWindow(object):
         self.tagCheck = QtWidgets.QCheckBox(self.groupBox)
         self.tagCheck.setObjectName("tagCheck")
         self.horizontalLayout_6.addWidget(self.tagCheck)
+        self.lrcFormatCheck = QtWidgets.QCheckBox(self.groupBox)
+        self.lrcFormatCheck.setObjectName("lrcFormatCheck")
+        self.horizontalLayout_6.addWidget(self.lrcFormatCheck)
         self.verticalLayout.addLayout(self.horizontalLayout_6)
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
@@ -253,7 +257,6 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ncmd - NeteaseCloudMusic Downloader"))
         self.userLB.setText(_translate("MainWindow", "User"))
-        self.listNameLB.setText(_translate("MainWindow", " "))
         self.idEdit.setPlaceholderText(_translate("MainWindow", "请输入id或歌单链接"))
         self.queryBtn.setText(_translate("MainWindow", "查询"))
         self.tableWidget.setSortingEnabled(True)
@@ -265,6 +268,7 @@ class Ui_MainWindow(object):
         self.groupBox.setTitle(_translate("MainWindow", "高级"))
         self.skipCheck.setText(_translate("MainWindow", "跳过存在文件"))
         self.tagCheck.setText(_translate("MainWindow", "写入mp3tag"))
+        self.lrcFormatCheck.setText(_translate("MainWindow", "歌词格式化"))
         self.radioButton.setText(_translate("MainWindow", "原始歌词"))
         self.radioButton_2.setText(_translate("MainWindow", "翻译歌词"))
         self.radioButton_3.setText(_translate("MainWindow", "原始 + 翻译歌词"))

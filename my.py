@@ -41,7 +41,7 @@ import sys
 
 import subprocess
 
-CHECKS = ['songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'radioButton', 'radioButton_2', 'radioButton_3']
+CHECKS = ['songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'lrcFormatCheck', 'radioButton', 'radioButton_2', 'radioButton_3']
 
 conf = {
     'baseURL': 'http://app.yzzzf.xyz:3000',
@@ -84,6 +84,7 @@ except json.decoder.JSONDecodeError:
 
 import re
 rr = re.compile(r'^(\[\d+:\d+\.\d+\])', re.M)
+lrcReg = re.compile(r'^(\[\d+:\d+\.\d{2})(\d+)(\])', re.M)
 
 
 def lrcMerge(a, b):
@@ -279,10 +280,11 @@ class writeLrc(QThread):
     res = {}
     lrcType = ()
 
-    def __init__(self, res, lrcType=(True, False, False)):
+    def __init__(self, res, lrcType=(True, False, False), lrcformat = False):
         super().__init__()
         self.res = res
         self.lrcType = lrcType
+        self.lrcformat = lrcformat
 
     def run(self):
         data = self.res['ret']
@@ -304,6 +306,8 @@ class writeLrc(QThread):
             except KeyError:
                 pass
         finally:
+            if self.lrcformat:
+                lrc = lrcReg.sub(r'\1\3',lrc)
             with open(f"{conf['path']}/{filename}", 'w', encoding='utf-8') as file:
                 file.write(lrc)
         self.always.emit(f'{filename}写入完成。')
@@ -658,7 +662,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     def _getLrc(self, res):
         lrcWriter = writeLrc(
-            res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()))
+            res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()), self.lrcFormatCheck.isChecked())
         lrcWriter.always.connect(self.statusBar().showMessage)
         self.lrcTask.add(lrcWriter)
 
