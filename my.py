@@ -17,18 +17,14 @@ import json
 import mutagen.flac, mutagen.id3
 
 import xmlrpc.client as rpc
-# ui
+
 import ui.net as net
 import ui.login as login
 import ui.lists as lists
 import ui.pattern as pattern
 import ui.sublist as sublist
 import ui.listItem as listItem
-# 核心逻辑
-'''
-by @pluto0x0
-https://github.com/pluto0x0/NeteaseMusicDownload
-'''
+
 import requests
 import json
 import time
@@ -494,9 +490,9 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.loginAction.triggered.connect(self.login)
         self.fnameAction.triggered.connect(self.setFilename)
         # 用户名标签事件绑定
-        self.userLB.enterEvent = self.user_enter
-        self.userLB.leaveEvent = self.user_leave
-        self.userLB.mousePressEvent = self.user_press
+        self.userLB.enterEvent = self.UserEnter
+        self.userLB.leaveEvent = self.UserLeave
+        self.userLB.mousePressEvent = self.UserPress
 
         self.testBtn.clicked.connect(self.test)
         self.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -546,7 +542,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.pathLB.setText(conf['path'])
         self.pathBtn.clicked.connect(self.changePath)
 
-        self.aria2Action.triggered.connect(self.restartAria2)
+        self.aria2Action.triggered.connect(self.RestartAria2)
         startAria2()
 
         for check in CHECKS:
@@ -555,24 +551,24 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         if conf['cookie'] != '':
             self.loginDone()
 
-    def restartAria2(self):
+    def RestartAria2(self):
         aria2.kill()
         # time.sleep(1)
         startAria2()
 
-    def updateFileName(self):
+    def UpdateFileName(self):
         for i in range(len(self.songs)):
             self.songs[i]['filename'] = fileStr(conf['patternStr'].format(**self.songs[i]))
             self.tableWidget.setItem(i, 6, MyTableWidgetItem(self.songs[i]['filename']))
 
     # 写入配置方法
-    def writeConf(self, res):
+    def WriteConf(self, res):
         with open(confName, 'wb') as conffile:
             conffile.write(res.content)
         print('下载cussed')
 
     # 用户名鼠标进入事件
-    def user_enter(self, e):
+    def UserEnter(self, e):
         font = self.userLB.font()
         font.setUnderline(True)
         # 粗体
@@ -581,7 +577,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         return super().enterEvent(e)
 
     # 用户名鼠标离开事件
-    def user_leave(self, e):
+    def UserLeave(self, e):
         font = self.userLB.font()
         font.setUnderline(False)
         # 粗体
@@ -590,7 +586,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         return super().leaveEvent(e)
 
     # 用户名鼠标点击事件
-    def user_press(self, e):
+    def UserPress(self, e):
         self.lists = listWindow()
         self.lists.show()
         return super().mousePressEvent(e)
@@ -915,7 +911,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.fnameWindow = patternWindow()
         if self.fnameWindow.exec_() == self.fnameWindow.Accepted:
             self.statusBar().showMessage('文件名模式串已更新。')
-            self.updateFileName()
+            self.UpdateFileName()
 
         # TODO:
         # update
