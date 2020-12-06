@@ -18,12 +18,12 @@ import mutagen.flac, mutagen.id3
 
 import xmlrpc.client as rpc
 # ui
-import net
-import login
-import lists
-import pattern
-import sublist
-import listItem
+import ui.net as net
+import ui.login as login
+import ui.lists as lists
+import ui.pattern as pattern
+import ui.sublist as sublist
+import ui.listItem as listItem
 # 核心逻辑
 '''
 by @pluto0x0
@@ -41,7 +41,10 @@ import sys
 
 import subprocess
 
-CHECKS = ['songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'lrcFormatCheck', 'radioButton', 'radioButton_2', 'radioButton_3']
+CHECKS = [
+    'songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'lrcFormatCheck', 'radioButton', 'radioButton_2',
+    'radioButton_3'
+]
 
 conf = {
     'baseURL': 'http://app.yzzzf.xyz:3000',
@@ -280,7 +283,7 @@ class writeLrc(QThread):
     res = {}
     lrcType = ()
 
-    def __init__(self, res, lrcType=(True, False, False), lrcformat = False):
+    def __init__(self, res, lrcType=(True, False, False), lrcformat=False):
         super().__init__()
         self.res = res
         self.lrcType = lrcType
@@ -307,7 +310,7 @@ class writeLrc(QThread):
                 pass
         finally:
             if self.lrcformat:
-                lrc = lrcReg.sub(r'\1\3',lrc)
+                lrc = lrcReg.sub(r'\1\3', lrc)
             with open(f"{conf['path']}/{filename}", 'w', encoding='utf-8') as file:
                 file.write(lrc)
         self.always.emit(f'{filename}写入完成。')
@@ -662,7 +665,8 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     def _getLrc(self, res):
         lrcWriter = writeLrc(
-            res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()), self.lrcFormatCheck.isChecked())
+            res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()),
+            self.lrcFormatCheck.isChecked())
         lrcWriter.always.connect(self.statusBar().showMessage)
         self.lrcTask.add(lrcWriter)
 
