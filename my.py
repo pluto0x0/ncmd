@@ -121,9 +121,9 @@ def startAria2():
 
 
 # 子窗口
-class ChildWindow(QDialog, login.Ui_Dialog):
+class LoginChildWindow(QDialog, login.Ui_Dialog):
     def __init__(self):
-        super(ChildWindow, self).__init__()
+        super(LoginChildWindow, self).__init__()
         self.setupUi(self)
         self.skipBtn.clicked.connect(self.close)
         self.loginBtn.clicked.connect(self.login)
@@ -141,7 +141,7 @@ class ChildWindow(QDialog, login.Ui_Dialog):
         conf['loginName'] = self.actEdit.text()
         self.loginBtn.setEnabled(False)
         usePhone = self.isPhone.isChecked()
-        self.get = Get(conf['baseURL'] + '/login/' + ('cellphone' if usePhone else 'email'),
+        self.get = RequestThread(conf['baseURL'] + '/login/' + ('cellphone' if usePhone else 'email'),
                        params={
                            ('phone' if usePhone else 'email'): self.actEdit.text(),
                            'password': self.pwdEdit.text()
@@ -169,35 +169,24 @@ class ChildWindow(QDialog, login.Ui_Dialog):
             self.loginBtn.setEnabled(True)
 
 
-class fucker(sublist.Ui_Form, QWidget):
+class fuckerd(sublist.Ui_Form, QWidget):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
 
 
 # 用户歌单窗口类
-class listWindow(QDialog, lists.Ui_Dialog):
+class ListChildWindow(QDialog, lists.Ui_Dialog):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
         self.exitBtn.clicked.connect(lambda: self.close())
 
-        self.xx = fucker()
+        self.xx = fuckerd()
         self.gridLayout.addChildWidget(self.xx)
 
 
-# 测试线程
-class Test1(QThread):  # 线程1
-    def __init__(self):
-        super().__init__()
-
-    def run(self):
-        for i in range(5):
-            print(i)
-            time.sleep(1)
-
-
-class MyItem(QWidget, listItem.Ui_Form):
+class ListItem(QWidget, listItem.Ui_Form):
     def __init__(self, title):
         super().__init__()
         self.setupUi(self)
@@ -205,9 +194,12 @@ class MyItem(QWidget, listItem.Ui_Form):
         self.folderButton.setIcon(qta.icon('fa5.folder', scale_factor=1))
         self.deleteButton.setIcon(qta.icon('fa.trash-o', scale_factor=1))
         self.pauseButton.setIcon(qta.icon('fa.pause', scale_factor=1))
+        self.folderButton.setEnabled(False)
+        self.deleteButton.setEnabled(False)
+        self.pauseButton.setEnabled(False)
 
 
-class writeTag(QThread):
+class WriteTagThread(QThread):
     always = pyqtSignal(str)
     final = pyqtSignal()
 
@@ -274,7 +266,7 @@ class writeTag(QThread):
         self.final.emit()
 
 
-class writeLrc(QThread):
+class WriteLrcThread(QThread):
     always = pyqtSignal(str)
     res = {}
     lrcType = ()
@@ -313,7 +305,7 @@ class writeLrc(QThread):
 
 
 # get请求线程类
-class Get(QThread):  # 线程1
+class RequestThread(QThread):  # 线程1
     success = pyqtSignal(object)
     fail = pyqtSignal()
     always = pyqtSignal()
@@ -421,7 +413,7 @@ class Download(QThread):
 
 
 # http://cn.voidcc.com/question/p-vujtksge-wr.html
-class MyTableWidgetItem(QTableWidgetItem):
+class CostomTableWidgetItem(QTableWidgetItem):
     def __init__(self, key):
         super().__init__(str(key) if key != None else '(不可用)', QTableWidgetItem.UserType)
         self.key = key
@@ -437,7 +429,7 @@ class MyTableWidgetItem(QTableWidgetItem):
 
 
 # 多任务get请求
-class multiGet(QObject):
+class MultiTask(QObject):
     final = pyqtSignal()
 
     def __init__(self, max_conn=5):
@@ -447,7 +439,7 @@ class multiGet(QObject):
         self.num = max_conn
         self.done_cnt = 0
 
-    def add(self, req: Get):
+    def add(self, req: RequestThread):
         req.always.connect(self.next)
         self.queue.append(req)
 
@@ -473,13 +465,13 @@ class multiGet(QObject):
 
 
 # 主窗口类
-class mainWin(QMainWindow, net.Ui_MainWindow):
+class MainWindow(QMainWindow, net.Ui_MainWindow):
     songs = [{}]
     listName = '歌单名称'
 
     def __init__(self, parent=None):
         # 固定用法
-        super(mainWin, self).__init__(parent)
+        super(MainWindow, self).__init__(parent)
         self.setupUi(self)
         # 按钮绑定槽函数
         self.statusBar().showMessage('无动作')
@@ -559,7 +551,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
     def UpdateFileName(self):
         for i in range(len(self.songs)):
             self.songs[i]['filename'] = fileStr(conf['patternStr'].format(**self.songs[i]))
-            self.tableWidget.setItem(i, 6, MyTableWidgetItem(self.songs[i]['filename']))
+            self.tableWidget.setItem(i, 6, CostomTableWidgetItem(self.songs[i]['filename']))
 
     # 写入配置方法
     def WriteConf(self, res):
@@ -587,19 +579,19 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     # 用户名鼠标点击事件
     def UserPress(self, e):
-        self.lists = listWindow()
+        self.lists = ListChildWindow()
         self.lists.show()
         return super().mousePressEvent(e)
 
     def loginDone(self):
-        self.get = Get(conf['avatarURL'], is_json=False)
+        self.get = RequestThread(conf['avatarURL'], is_json=False)
         self.get.success.connect(self.displayImg)
         self.get.start()
 
     # 用户登录方法
     def login(self):
         self.statusBar().showMessage('用户登录')
-        login = ChildWindow()
+        login = LoginChildWindow()
         if login.exec_() == login.Accepted:
             print(conf['cookie'])
             self.loginDone()
@@ -651,16 +643,16 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
     def setupItem(self, title):
         listitem = QListWidgetItem(self.taskList)
         listitem.setSizeHint(QSize(200, 50))
-        myitem = MyItem(title)
+        myitem = ListItem(title)
         # myitem.deleteButton.clicked.connect(self.delete)
         # myitem.folderButton.clicked.connect(lambda : os.system(f'explorer {path}'))
         self.taskList.setItemWidget(listitem, myitem)
         return (myitem, listitem)
 
-    lrcTask = multiGet()
+    lrcTask = MultiTask()
 
     def _getLrc(self, res):
-        lrcWriter = writeLrc(
+        lrcWriter = WriteLrcThread(
             res, (self.radioButton.isChecked(), self.radioButton_2.isChecked(), self.radioButton_3.isChecked()),
             self.lrcFormatCheck.isChecked())
         lrcWriter.always.connect(self.statusBar().showMessage)
@@ -682,7 +674,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         # self.genM3u8()
         # return
 
-        self.mutidown = multiGet(max_conn=conf['maxDownload'])
+        self.mutidown = MultiTask(max_conn=conf['maxDownload'])
         fileList = os.listdir(conf['path'])
 
         def addTask(ext, url):
@@ -711,13 +703,13 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
                 addTask('jpg', i['pic'])
 
         if self.lrcCheck.isChecked():
-            self.lrcGet = multiGet(max_conn=5)
+            self.lrcGet = MultiTask(max_conn=5)
             for i in self.songs:
                 filename = i['filename'] + '.lrc'
                 if self.skipCheck.isChecked() and filename in fileList:
                     self.statusBar().showMessage(f'跳过{filename}，已存在。')
                     continue
-                task = Get(f"{conf['baseURL']}/lyric", params={'id': i['id']}, data=filename)
+                task = RequestThread(f"{conf['baseURL']}/lyric", params={'id': i['id']}, data=filename)
                 task.success.connect(self._getLrc)
                 self.lrcGet.add(task)
             self.lrcTask.final.connect(lambda: self.statusBar().showMessage('所有歌词完成。'))
@@ -731,7 +723,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
     def writeTag(self):
         fileList = os.listdir(conf['path'])
         if self.tagCheck.isChecked():
-            self.tagwriter = writeTag(filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
+            self.tagwriter = WriteTagThread(filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
             self.tagwriter.always.connect(lambda ret: self.statusBar().showMessage(ret))
             self.tagwriter.final.connect(lambda: self.statusBar().showMessage('所有标签写入完成。'))
             self.tagwriter.start()
@@ -771,12 +763,12 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         if re.search(r'album', id) != None:
             id = re.search(r'album\?id=([0-9]+)', id).group(1)
             # self.idEdit.setText(id)
-            self.getLists = Get(conf['baseURL'] + '/album', params={'id': id}, data='album')
+            self.getLists = RequestThread(conf['baseURL'] + '/album', params={'id': id}, data='album')
         else:
             if re.search(r'id', id) != None:
                 id = re.search(r'id=([0-9]+)', id).group(1)
                 self.idEdit.setText(id)
-            self.getLists = Get(conf['baseURL'] + '/playlist/detail', params={'id': id}, data='playlist')
+            self.getLists = RequestThread(conf['baseURL'] + '/playlist/detail', params={'id': id}, data='playlist')
         self.getLists.start()
         self.getLists.success.connect(self._query)
 
@@ -805,23 +797,23 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
         self.tableWidget.setRowCount(self.len)
 
         for i in range(self.len):
-            self.tableWidget.setItem(i, 0, MyTableWidgetItem(songids[i]))
+            self.tableWidget.setItem(i, 0, CostomTableWidgetItem(songids[i]))
             self.id2no[songids[i]] = i
         # print(repr(songids))
         cur_br = [180000, 320000, 999000][self.brBox.currentIndex()]
         self.brBox.setEnabled(False)
-        self.mget = multiGet()
+        self.mget = MultiTask()
         self.songs_d = []
 
         for i in range(0, len(self.songs), conf['maxLen']):
             ids = ','.join(songids[i:i + conf['maxLen']])
             # 获取音乐信息
             # TODO!!!!!!!!!!!!!!!!!
-            get = Get(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i}, NoCache=True)  # no：序号
+            get = RequestThread(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i}, NoCache=True)  # no：序号
             get.success.connect(self._each)
             self.mget.add(get)
             # 获取音乐URL
-            get = Get(conf['baseURL'] + '/song/url',
+            get = RequestThread(conf['baseURL'] + '/song/url',
                       params={
                           'id': ids,
                           'cookie': conf['cookie'],
@@ -874,7 +866,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
             mapping = ['no', 'name', 'artist', 'album', 'len', 'filename']
             for j in range(len(mapping)):
-                self.tableWidget.setItem(no, j + 1, MyTableWidgetItem(song[mapping[j]]))
+                self.tableWidget.setItem(no, j + 1, CostomTableWidgetItem(song[mapping[j]]))
 
         le = len(res['ret']['songs'])
         self.done = self.done + le
@@ -888,11 +880,11 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
             # print(no,'!')
             self.songs[no].update({'url': data['url'], 'br': data['br'], 'type': data['type']})
 
-            self.tableWidget.setItem(no, 7, MyTableWidgetItem(data['url']))
-            self.tableWidget.setItem(no, 8, MyTableWidgetItem(data['br']))
+            self.tableWidget.setItem(no, 7, CostomTableWidgetItem(data['url']))
+            self.tableWidget.setItem(no, 8, CostomTableWidgetItem(data['br']))
             if self.songs[no]['type'] != None:
                 self.songs[no]['type'] = self.songs[no]['type'].lower()
-            self.tableWidget.setItem(no, 9, MyTableWidgetItem(self.songs[no]['type']))
+            self.tableWidget.setItem(no, 9, CostomTableWidgetItem(self.songs[no]['type']))
 
         le = len(res['ret']['data'])
         self.done = self.done + le
@@ -908,7 +900,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
     # 设置文件名格式方法
     def setFilename(self):
-        self.fnameWindow = patternWindow()
+        self.fnameWindow = PatternWindow()
         if self.fnameWindow.exec_() == self.fnameWindow.Accepted:
             self.statusBar().showMessage('文件名模式串已更新。')
             self.UpdateFileName()
@@ -918,7 +910,7 @@ class mainWin(QMainWindow, net.Ui_MainWindow):
 
 
 # 文件名格式窗口类
-class patternWindow(QDialog, pattern.Ui_Dialog):
+class PatternWindow(QDialog, pattern.Ui_Dialog):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -945,6 +937,6 @@ class patternWindow(QDialog, pattern.Ui_Dialog):
 if __name__ == '__main__':
     # PyQt5的固定用法
     app = QApplication(sys.argv)
-    main_win = mainWin()
-    main_win.show()
+    ncmd = MainWindow()
+    ncmd.show()
     sys.exit(app.exec_())
