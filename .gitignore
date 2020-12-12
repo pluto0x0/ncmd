@@ -7,9 +7,11 @@ NEW/*
 !NEW/.gitkeep
 .vscode/
 aria2.log
+*.log
 aria2.err
 config.json
 output/
+*.zip
 # pyinstaller
 build/
 dist/
