@@ -22,7 +22,8 @@ echo copy and rename files..
 mv dist/my/ dist/ncmd/
 mv dist/my.exe dist/ncmd.exe
 mv dist/ncmd/my.exe dist/ncmd/ncmd.exe
-cp aria2c.exe aria2.conf dist/ncmd/
+cp aria2c.exe dist/ncmd/
+cp aria2.conf dist/ncmd/
 echo build zip file..
 ./zip -q -j ${filename} dist/ncmd.exe aria2c.exe aria2.conf
 cd dist
