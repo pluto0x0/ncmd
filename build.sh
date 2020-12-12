@@ -31,12 +31,18 @@ cd dist
 cd ..
 echo ok
 
+putMD5(){
+    md5=`md5sum ${filename}`
+    out=`expr substr "\"${md5}\"" 2 32`
+    echo -n $out
+}
+
 echo  '📂|单文件版|未打包版' > sample.md
 echo '---|---|---' >> sample.md
 echo "🔗|[下载地址](https://github.com/pluto0x0/ncmd/releases/download/${version}/${filename})| [下载地址](https://github.com/pluto0x0/ncmd/releases/download/${version}/${filename_unpack})" >> sample.md
-echo 'md5|' >> sample.md
-expr substr "\"`md5sum ${filename}`\"" 2 32 >> sample.md
-echo '|' >> sample.md
-expr substr "\"`md5sum ${filename_unpack}`\"" 2 32 >> sample.md
+echo -n 'md5|' >> sample.md
+putMD5 $filename >> sample.md
+echo -n '|' >> sample.md
+putMD5 $filename_unpack >> sample.md
 echo '|' >> sample.md
 echo '**（windows only）**' >> sample.md
