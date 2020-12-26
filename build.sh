@@ -32,7 +32,7 @@ cd ..
 echo ok
 
 putMD5(){
-    md5=`md5sum ${filename}`
+    md5=`md5sum $1`
     out=`expr substr "\"${md5}\"" 2 32`
     echo -n $out
 }
