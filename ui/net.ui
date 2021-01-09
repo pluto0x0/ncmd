@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>ncmd - NeteaseCloudMusic Downloader</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../icon.ico</normaloff>../icon.ico</iconset>
+  </property>
   <property name="statusTip">
    <string/>
   </property>

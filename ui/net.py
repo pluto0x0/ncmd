@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'net.ui'
+# Form implementation generated from reading ui file 'ui/net.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.0
 #
@@ -15,6 +15,9 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(875, 841)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("ui\\../icon.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        MainWindow.setWindowIcon(icon)
         MainWindow.setStatusTip("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
