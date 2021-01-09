@@ -109,7 +109,7 @@ def fileStr(str):
 
 aria2 = None
 
-
+# @log
 def startAria2():
     global aria2
     aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
