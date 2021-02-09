@@ -34,8 +34,13 @@ import platform
 from configparser import ConfigParser
 import hashlib
 import sys
-
+import platform
 import subprocess
+
+OS = platform.platform()
+print('OS: ', OS)
+isWindows = re.match('windows', OS, re.I) != None
+print(isWindows)
 
 CHECKS = [
     'songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'lrcFormatCheck', 'radioButton', 'radioButton_2',
@@ -111,9 +116,17 @@ aria2 = None
 
 # @log
 def startAria2():
+    # Start up Aria2
     global aria2
-    aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
-                             creationflags=subprocess.CREATE_NO_WINDOW,
+    if isWindows:
+        aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            # Arg for windows platform only!
+                            stdout=open('aria2.log', 'a'),
+                            stderr=open('aria2.err', 'a'),
+                            stdin=subprocess.PIPE)
+    else:
+        aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
                              stdout=open('aria2.log', 'a'),
                              stderr=open('aria2.err', 'a'),
                              stdin=subprocess.PIPE)
