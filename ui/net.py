@@ -250,7 +250,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menu_4.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
         self.brBox.setCurrentIndex(-1)
         self.tagCheck.clicked['bool'].connect(self.picCheck.setChecked)
         self.tagCheck.clicked['bool'].connect(self.picCheck.setDisabled)
