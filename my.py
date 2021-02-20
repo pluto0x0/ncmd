@@ -1,51 +1,37 @@
-# TODO：m3u8文件名格式、歌曲名格式
-
-# ui（pyqt）相关
-
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QAbstractItemView, QTableWidgetItem, QWidget, QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QPushButton, QFileDialog
-from PyQt5.Qt import QThread, pyqtSignal
-from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
-from PyQt5.QtCore import Qt, QObject, QSize, QMutex
-'''
-from PyQt5.QtWidgets import *
+# PyQt
 from PyQt5.Qt import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-'''
+from PyQt5.QtWidgets import *
+# UI
+import ui.net, ui.login, ui.lists, ui.pattern, ui.sublist, ui.listItem
+
 import qtawesome as qta
-import json
-import mutagen.flac, mutagen.id3
-
 import xmlrpc.client as rpc
+import mutagen.flac, mutagen.id3
+import requests, time, re, os, platform, hashlib, sys, subprocess, json
 
-import ui.net as net
-import ui.login as login
-import ui.lists as lists
-import ui.pattern as pattern
-import ui.sublist as sublist
-import ui.listItem as listItem
+LogFileName = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+LogFile = open(f'log/{LogFileName}.log', 'w')
+# log文件
 
-import requests
-import json
-import time
-import re
-import os
-import platform
-from configparser import ConfigParser
-import hashlib
-import sys
-import platform
-import subprocess
+
+def log(*args, **kwargs):
+    print('[' + time.asctime(time.localtime(time.time())) + ']', file=LogFile)
+    print(*args, **kwargs, file=LogFile)
+
 
 OS = platform.platform()
-print('OS: ', OS)
+# OS信息
 isWindows = re.match('windows', OS, re.I) != None
-print(isWindows)
+# 判断是否Windows系统
+log('systeminfo:', OS)
 
 CHECKS = [
     'songCheck', 'picCheck', 'lrcCheck', 'skipCheck', 'tagCheck', 'lrcFormatCheck', 'radioButton', 'radioButton_2',
     'radioButton_3'
 ]
+# 需要保存状态的控件列表
 
 conf = {
     'baseURL': 'http://app.yzzzf.xyz:3000',
@@ -61,39 +47,43 @@ conf = {
     'widget': {
         'checks': {check: True
                    for check in CHECKS}
-        # 'lrcType': 3
-        # 1 origin
-        # 2 translate
-        # 3 merge
     }
 }
-print(conf['widget']['checks'])
-# conf['baseURL'] = 'http://localhost:3000'
+# 初始配置，如果没有已保存的配置则使用
+confName = 'config.json'
+
 # NoCache = False
 
 if not os.path.exists(conf['path']):
-    os.mkdir(conf['path'])
+    conf['path'] = os.path.abspath('.')
+    log('path in config do not exitst.changed to', conf['path'])
+    # os.mkdir(conf['path'])
 
 rpcServer = rpc.ServerProxy('http://localhost:6888/rpc')
-
-confName = 'config.json'
+# rpc连接实例
 
 try:
     with open(confName, encoding='utf-8') as confFile:
         conf = json.loads(confFile.read())
 except FileNotFoundError:
+    # 找不到config文件
+    log('config file do not exist. use default one.')
     pass
 except json.decoder.JSONDecodeError:
+    # config文件decode错误
+    log('decode config json file error. use default one.')
     pass
 
-import re
-rr = re.compile(r'^(\[\d+:\d+\.\d+\])', re.M)
+allLrc = re.compile(r'^(\[\d+:\d+\.\d+\])', re.M)
+# 匹配lrc所有头
 lrcReg = re.compile(r'^(\[\d+:\d+\.\d{2})(\d+)(\])', re.M)
+# 匹配三位lrc头
 
 
 def lrcMerge(a, b):
-    aa = rr.split(a)
-    bb = rr.split(b)
+    # 合并歌词
+    aa = allLrc.split(a)
+    bb = allLrc.split(b)
     out = ''
     for i in range(1, len(aa), 2):
         try:
@@ -104,8 +94,8 @@ def lrcMerge(a, b):
     return ''.join(aa)
 
 
-# 文件名转换函数
 def fileStr(str):
+    # 文件名转换
     dic = {'*': '＊', '/': '／', '\\': '＼', ':': '：', '"': '＂', '?': '？', '>': '＞', '＜': '＜', '|': '｜'}
     for key in dic:
         str = str.replace(key, dic[key])
@@ -113,40 +103,40 @@ def fileStr(str):
 
 
 aria2 = None
+aria2_log = open('aria2.log', 'a')
+aria2_err = open('aria2.err', 'a')
 
-# @log
+
 def startAria2():
-    # Start up Aria2
+    # 启动Aria2
     global aria2
+    kwargs = {'stdout': aria2_log, 'stderr': aria2_err, 'stdin': subprocess.PIPE}
     if isWindows:
-        aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
-                            creationflags=subprocess.CREATE_NO_WINDOW,
-                            # Arg for windows platform only!
-                            stdout=open('aria2.log', 'a'),
-                            stderr=open('aria2.err', 'a'),
-                            stdin=subprocess.PIPE)
-    else:
-        aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'],
-                             stdout=open('aria2.log', 'a'),
-                             stderr=open('aria2.err', 'a'),
-                             stdin=subprocess.PIPE)
+        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+        # 该参数仅用于windows系统
+    aria2 = subprocess.Popen([r'aria2c', r'--conf-path', r'aria2.conf'], **kwargs)
     # QMessageBox.critical(self, '错误', 'aria2 启动失败，请重试。')
 
 
-# 子窗口
-class LoginChildWindow(QDialog, login.Ui_Dialog):
+class LoginChildWindow(QDialog, ui.login.Ui_Dialog):
+    # 登录窗口
     def __init__(self):
         super(LoginChildWindow, self).__init__()
         self.setupUi(self)
+
         self.skipBtn.clicked.connect(self.close)
         self.loginBtn.clicked.connect(self.login)
         txtChange = lambda: self.loginBtn.setEnabled(self.actEdit.text() != '' and self.pwdEdit.text() != '')
-        txtChange()
         self.actEdit.textChanged.connect(txtChange)
         self.pwdEdit.textChanged.connect(txtChange)
+        txtChange()
+        # 绑定按钮槽函数
+
         try:
             self.actEdit.setText(conf['loginName'])
+            log('cached username:', conf['loginName'])
         except KeyError:
+            log('no cached username.')
             pass
 
     # 登录请求
@@ -155,10 +145,10 @@ class LoginChildWindow(QDialog, login.Ui_Dialog):
         self.loginBtn.setEnabled(False)
         usePhone = self.isPhone.isChecked()
         self.get = RequestThread(conf['baseURL'] + '/login/' + ('cellphone' if usePhone else 'email'),
-                       params={
-                           ('phone' if usePhone else 'email'): self.actEdit.text(),
-                           'password': self.pwdEdit.text()
-                       })
+                                 params={
+                                     ('phone' if usePhone else 'email'): self.actEdit.text(),
+                                     'password': self.pwdEdit.text()
+                                 })
         self.get.start()
         self.get.success.connect(self._login)
 
@@ -182,24 +172,24 @@ class LoginChildWindow(QDialog, login.Ui_Dialog):
             self.loginBtn.setEnabled(True)
 
 
-class fuckerd(sublist.Ui_Form, QWidget):
+class fuckerd(ui.sublist.Ui_Form, QWidget):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
 
 
 # 用户歌单窗口类
-class ListChildWindow(QDialog, lists.Ui_Dialog):
+class ListChildWindow(QDialog, ui.lists.Ui_Dialog):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.exitBtn.clicked.connect(lambda: self.close())
 
+        self.exitBtn.clicked.connect(self.close)
         self.xx = fuckerd()
         self.gridLayout.addChildWidget(self.xx)
 
 
-class ListItem(QWidget, listItem.Ui_Form):
+class ListItem(QWidget, ui.listItem.Ui_Form):
     def __init__(self, title):
         super().__init__()
         self.setupUi(self)
@@ -478,7 +468,7 @@ class MultiTask(QObject):
 
 
 # 主窗口类
-class MainWindow(QMainWindow, net.Ui_MainWindow):
+class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
     songs = [{}]
     listName = '歌单名称'
 
@@ -672,6 +662,7 @@ class MainWindow(QMainWindow, net.Ui_MainWindow):
         self.lrcTask.add(lrcWriter)
 
     def closeEvent(self, event):
+        LogFile.close()
         aria2.kill()
         for check in CHECKS:
             conf['widget']['checks'][check] = eval(f"self.{check}.isChecked()")
@@ -736,7 +727,8 @@ class MainWindow(QMainWindow, net.Ui_MainWindow):
     def writeTag(self):
         fileList = os.listdir(conf['path'])
         if self.tagCheck.isChecked():
-            self.tagwriter = WriteTagThread(filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
+            self.tagwriter = WriteTagThread(
+                filter(lambda song: f'{song["filename"]}.{song["type"]}' in fileList, self.songs))
             self.tagwriter.always.connect(lambda ret: self.statusBar().showMessage(ret))
             self.tagwriter.final.connect(lambda: self.statusBar().showMessage('所有标签写入完成。'))
             self.tagwriter.start()
@@ -822,18 +814,19 @@ class MainWindow(QMainWindow, net.Ui_MainWindow):
             ids = ','.join(songids[i:i + conf['maxLen']])
             # 获取音乐信息
             # TODO!!!!!!!!!!!!!!!!!
-            get = RequestThread(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i}, NoCache=True)  # no：序号
+            get = RequestThread(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i},
+                                NoCache=True)  # no：序号
             get.success.connect(self._each)
             self.mget.add(get)
             # 获取音乐URL
             get = RequestThread(conf['baseURL'] + '/song/url',
-                      params={
-                          'id': ids,
-                          'cookie': conf['cookie'],
-                          'br': cur_br
-                      },
-                      data={'no': i},
-                      NoCache=True)
+                                params={
+                                    'id': ids,
+                                    'cookie': conf['cookie'],
+                                    'br': cur_br
+                                },
+                                data={'no': i},
+                                NoCache=True)
             get.success.connect(self._each_url)
             self.mget.add(get)
         self.mget.final.connect(self.qDone)
@@ -923,7 +916,7 @@ class MainWindow(QMainWindow, net.Ui_MainWindow):
 
 
 # 文件名格式窗口类
-class PatternWindow(QDialog, pattern.Ui_Dialog):
+class PatternWindow(QDialog, ui.pattern.Ui_Dialog):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
