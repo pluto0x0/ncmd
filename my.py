@@ -10,6 +10,7 @@ import qtawesome as qta
 import xmlrpc.client as rpc
 import mutagen.flac, mutagen.id3
 import requests, time, re, os, platform, hashlib, sys, subprocess, json
+import quamash, asyncio, aiohttp
 
 LogFileName = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 LogFile = open(f'log/{LogFileName}.log', 'w')
@@ -118,6 +119,10 @@ def startAria2():
     # QMessageBox.critical(self, '错误', 'aria2 启动失败，请重试。')
 
 
+session = None
+httpProxy = 'http://49.75.59.242:3128'
+
+
 class LoginChildWindow(QDialog, ui.login.Ui_Dialog):
     # 登录窗口
     def __init__(self):
@@ -141,35 +146,43 @@ class LoginChildWindow(QDialog, ui.login.Ui_Dialog):
 
     # 登录请求
     def login(self):
-        conf['loginName'] = self.actEdit.text()
         self.loginBtn.setEnabled(False)
-        usePhone = self.isPhone.isChecked()
-        self.get = RequestThread(conf['baseURL'] + '/login/' + ('cellphone' if usePhone else 'email'),
-                                 params={
-                                     ('phone' if usePhone else 'email'): self.actEdit.text(),
-                                     'password': self.pwdEdit.text()
-                                 })
-        self.get.start()
-        self.get.success.connect(self._login)
+        conf['loginName'] = self.actEdit.text()
 
-    # 登录请求回调函数
-    def _login(self, data):
-        # print(repr(data))
-        if data['code'] == 200:
-            '''
-            global nickname
-            global cookie
-            global avatarUrl
-            '''
-            conf['nickname'] = data['profile']['nickname']
-            conf['cookie'] = data['cookie']
-            conf['avatarURL'] = data['profile']['avatarUrl']
+        url = conf['baseURL'] + '/login/'
+        params = {'password': self.pwdEdit.text()}
 
-            self.accept()
+        if self.isPhone.isChecked():
+            url = url + 'cellphone'
+            params['phone'] = self.actEdit.text()
         else:
-            QMessageBox.critical(self, '登录失败', '登录失败（{0}）\n{1}'.format(data['code'],
-                                                                       data['msg'] if data['code'] != 400 else ''))
-            self.loginBtn.setEnabled(True)
+            url = url + 'email'
+            params['email'] = self.actEdit.text()
+
+        if httpProxy:
+            params['proxy'] = httpProxy
+            log('use http proxy:', httpProxy)
+
+        async def get():
+            async with session.get(url, params=params) as respones:
+                res = await respones.json()
+                self.loginBtn.setEnabled(True)
+
+                if res['code'] == 200:
+                    conf['nickname'] = res['profile']['nickname']
+                    conf['cookie'] = res['cookie']
+                    conf['avatarURL'] = res['profile']['avatarUrl']
+
+                    log('login successed:', conf['nickname'])
+                else:
+                    errorMsg = '登录失败（{0}）\n{1}'.format(data['code'], data['msg'] if data['code'] != 400 else '')
+                    log('login failed', errorMsg)
+
+                    QMessageBox.critical(self, '登录失败', errorMsg)
+
+                self.accept()
+
+        asyncio.ensure_future(get(), loop=loop)
 
 
 class fuckerd(ui.sublist.Ui_Form, QWidget):
@@ -546,9 +559,12 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
         if conf['cookie'] != '':
             self.loginDone()
 
+    def showStatus(self, *args, sp=' '):
+        self.statusBar().showMessage(sp.join(map(lambda x: str(x), args)))
+        log(args)
+
     def RestartAria2(self):
         aria2.kill()
-        # time.sleep(1)
         startAria2()
 
     def UpdateFileName(self):
@@ -585,40 +601,50 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
         self.lists = ListChildWindow()
         self.lists.show()
         return super().mousePressEvent(e)
+    
 
-    def loginDone(self):
-        self.get = RequestThread(conf['avatarURL'], is_json=False)
-        self.get.success.connect(self.displayImg)
-        self.get.start()
-
-    # 用户登录方法
     def login(self):
-        self.statusBar().showMessage('用户登录')
+        '''用户登录'''
+        self.showStatus('用户登录')
+
         login = LoginChildWindow()
         if login.exec_() == login.Accepted:
-            print(conf['cookie'])
             self.loginDone()
+
         login.destroy()
 
-    # 显示用户头像方法
-    def displayImg(self, data):
-        # mutex.lock()
-        img = QPixmap()
-        img.loadFromData(data.content)
-        img = img.scaled(50, 50, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-        self.canvas = QPixmap(50, 50)
-        self.canvas.fill(Qt.transparent)
-        painter = QPainter(self.canvas)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        path = QPainterPath()
-        path.addEllipse(0, 0, 50, 50)
-        painter.setClipPath(path)
-        painter.drawPixmap(0, 0, img)
-        self.AvatarLB.setPixmap(self.canvas)
+    def loginDone(self):
+        '''登录成功'''
         self.userLB.setText(conf['nickname'])
-        # mutex.unlock()
+        # 显示id
+
+        def displayImg(data):
+            '''显示用户头像'''
+            img = QPixmap()
+            img.loadFromData(data)
+            img = img.scaled(50, 50, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            self.canvas = QPixmap(50, 50)
+            self.canvas.fill(Qt.transparent)
+            painter = QPainter(self.canvas)
+            painter.setRenderHint(QPainter.Antialiasing, True)
+            painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+            path = QPainterPath()
+            path.addEllipse(0, 0, 50, 50)
+            painter.setClipPath(path)
+            painter.drawPixmap(0, 0, img)
+            self.AvatarLB.setPixmap(self.canvas)
+
+        async def getAvatar(url):
+            async with session.get(url) as respones:
+                res = await respones.read()
+                if not res:
+                    # 头像获取失败
+                    log('get avatar failed:', url)
+                else:
+                    displayImg(res)
+
+        asyncio.ensure_future(getAvatar(conf['avatarURL']),loop=loop)
 
     # 生成m3u8歌单
     def genM3u8(self):
@@ -941,8 +967,16 @@ class PatternWindow(QDialog, ui.pattern.Ui_Dialog):
 
 # 主函数
 if __name__ == '__main__':
-    # PyQt5的固定用法
-    app = QApplication(sys.argv)
-    ncmd = MainWindow()
-    ncmd.show()
-    sys.exit(app.exec_())
+    ncmd = QApplication(sys.argv)
+    loop = quamash.QEventLoop(ncmd)
+    asyncio.set_event_loop(loop)
+
+    async def initSession():
+        global session
+        session = aiohttp.ClientSession(loop=loop)
+    asyncio.ensure_future(initSession(), loop=loop)
+    
+    mainwin = MainWindow()
+    mainwin.show()
+    with loop:
+        loop.run_forever()

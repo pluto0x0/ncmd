@@ -1,0 +1,25 @@
+{
+    "baseURL": "http://app.yzzzf.xyz:3000",
+    "loginName": "17051050346",
+    "cookie": "__remember_me=true; Max-Age=1296000; Expires=Sun, 7 Feb 2021 15:25:30 GMT; Path=/;;NMTID=00Oofm916f9QMFrREZpnj1wNl7LlZsAAAF3L9mqug; Max-Age=315360000; Expires=Tue, 21 Jan 2031 15:25:30 GMT; Path=/;;MUSIC_U=6deb42d1c53e052323d3e17c13ed6656762554c00455e2bffd6ebfc6ee5fbd8b9cb4377b2d7ba249; Max-Age=1296000; Expires=Sun, 7 Feb 2021 15:25:30 GMT; Path=/;;__csrf=6be6d8e4e1406c0a2211922a33ac8f52; Max-Age=1296010; Expires=Sun, 7 Feb 2021 15:25:40 GMT; Path=/;",
+    "nickname": "Pluto0x0",
+    "avatarURL": "https://p4.music.126.net/Fh3weqddrXmgFwKhHUJzIg==/109951164584261390.jpg",
+    "patternStr": "{artist}-{name}-{album}",
+    "maxLen": 50,
+    "maxDownload": 6,
+    "noneLyric": "[00:00.000]\u7eaf\u97f3\u4e50\uff0c\u8bf7\u60a8\u6b23\u8d4f",
+    "path": "",
+    "widget": {
+        "checks": {
+            "songCheck": true,
+            "picCheck": true,
+            "lrcCheck": true,
+            "skipCheck": true,
+            "tagCheck": true,
+            "lrcFormatCheck": true,
+            "radioButton": true,
+            "radioButton_2": false,
+            "radioButton_3": false
+        }
+    }
+}
