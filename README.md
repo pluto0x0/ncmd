@@ -5,6 +5,9 @@ NCMD - Netease Cloud Music Downloader，一个高效网易云音乐™下载、�
 
 **[原项目](https://github.com/pluto0x0/NeteaseMusicDownload)**
 
+# 使用：
+**请在[release](https://github.com/pluto0x0/ncmd/releases)页下载使用**
+
 # 技术栈：
 - python3.8
 - [PyQt5](https://pypi.org/project/PyQt5/)
