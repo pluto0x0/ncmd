@@ -173,7 +173,7 @@ class LoginChildWindow(QDialog, ui.login.Ui_Dialog):
                     conf['cookie'] = res['cookie']
                     conf['avatarURL'] = res['profile']['avatarUrl']
 
-                    log('login successed:', conf['nickname'])
+                    log('login succeed:', conf['nickname'])
                 else:
                     errorMsg = '登录失败（{0}）\n{1}'.format(data['code'], data['msg'] if data['code'] != 400 else '')
                     log('login failed', errorMsg)
@@ -486,7 +486,7 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
     listName = '歌单名称'
 
     def __init__(self, parent=None):
-        # 固定用法
+
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
         # 按钮绑定槽函数
@@ -525,21 +525,7 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
         self.userListAction.setIcon(qta.icon('mdi.playlist-music', scale_factor=1.25))
         self.METAAction.setIcon(qta.icon('mdi.file-music-outline', scale_factor=1.25))
         self.aria2Action.setIcon(qta.icon('ei.refresh', scale_factor=1))
-        # 检查配置
-        '''
-        global confName
-        if not os.path.exists(confName):
-            print('配置文件不存在，自动下载默认配置...')
-            QMessageBox.warning(self, '提示', '配置文件缺失，\n点击‘Yes’下载配置', QMessageBox.Yes, QMessageBox.Yes)
-            self.get = Get(
-                'https://raw.githubusercontent.com/pluto0x0/NeteaseMusicDownload/master/NeteaseMusic.default.conf',
-                retry=5,
-                timeout=15,
-                is_json=False)
-            self.get.success.connect(self.writeConf)
-            self.get.fail.connect(lambda: self.close())
-            self.get.start()
-        '''
+
         self.groupBox.setVisible(False)
         self.proBtn.clicked.connect(self.displayPro)
         self.proBtn.setIcon(qta.icon('fa.chevron-down'))
@@ -601,7 +587,6 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
         self.lists = ListChildWindow()
         self.lists.show()
         return super().mousePressEvent(e)
-    
 
     def login(self):
         '''用户登录'''
@@ -616,6 +601,7 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
     def loginDone(self):
         '''登录成功'''
         self.userLB.setText(conf['nickname'])
+
         # 显示id
 
         def displayImg(data):
@@ -644,7 +630,7 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
                 else:
                     displayImg(res)
 
-        asyncio.ensure_future(getAvatar(conf['avatarURL']),loop=loop)
+        asyncio.ensure_future(getAvatar(conf['avatarURL']), loop=loop)
 
     # 生成m3u8歌单
     def genM3u8(self):
@@ -775,153 +761,111 @@ class MainWindow(QMainWindow, ui.net.Ui_MainWindow):
         myitem.progressBar.setValue(int(ret['completedLength']))
         myitem.speedLabel.setText(f'{int(ret["downloadSpeed"])/1024:.2f}KiB/s')
 
-    # 请求歌单方法
     def query(self):
         self.tableWidget.clearContents()
-        '''
         self.tableWidget.setSortingEnabled(False)
-        self.tableWidget.setSortingEnabled(True)
-
-        self.tableWidget.setColumnCount(0)
-        self.tableWidget.setColumnCount(10)
-        '''
-        self.tableWidget.setSortingEnabled(False)
-        '''
-        self.tableWidget.setHorizontalHeaderLabels(
-        ['id', '序号', '标题', '艺术家', '专辑', '时长（s）', '文件名', 'URL', '比特率（bps）', '格式'])
-        '''
         id = self.idEdit.text()
+        url = conf['baseURL'] + '/album'
+        opt = 0
         if re.search(r'album', id) != None:
             id = re.search(r'album\?id=([0-9]+)', id).group(1)
-            # self.idEdit.setText(id)
-            self.getLists = RequestThread(conf['baseURL'] + '/album', params={'id': id}, data='album')
         else:
             if re.search(r'id', id) != None:
                 id = re.search(r'id=([0-9]+)', id).group(1)
                 self.idEdit.setText(id)
-            self.getLists = RequestThread(conf['baseURL'] + '/playlist/detail', params={'id': id}, data='playlist')
-        self.getLists.start()
-        self.getLists.success.connect(self._query)
 
-    # 请求歌单回调函数
-    def _query(self, retu):
-        data = retu['ret']
-        songids = []
-        self.id2no = {}
+            url = conf['baseURL'] + '/playlist/detail'
+            opt = 1
+        params = {'id': id}
+        
+        async def get(url, params):
+            async with session.get(url,params=params) as respones:
+                res = await respones.json()
 
-        if retu['data'] == 'playlist':
-            songids = [str(song['id']) for song in data['playlist']['trackIds']]
-            self.listName = data['playlist']['name']
-        elif retu['data'] == 'album':
-            songids = [str(song['id']) for song in data['songs']]
-            self.listName = data['album']['name'] + ' - ' + data['album']['artist']['name']
+                if opt == 0:
+                    songids = [str(song['id']) for song in res['songs']]
+                    self.listName = res['album']['name'] + ' - ' + res['album']['artist']['name']
+                else:
+                    songids = [str(song['id']) for song in res['playlist']['trackIds']]
+                    self.listName = res['playlist']['name']
 
-        self.len = len(songids)
+                self.len = len(songids)
+                self.songs = [{} for _ in range(self.len)]
 
-        # https://blog.csdn.net/xingce_cs/article/details/79178077
-        self.songs = [{} for i in range(self.len)]
-        # 初始化
-        self.progressBar.setRange(1, self.len * 2)
-        self.done = 0
-        self.progressBar.setValue(0)
-        self.tableWidget.setRowCount(0)
-        self.tableWidget.setRowCount(self.len)
+                self.done = 0
+                self.progressBar.setRange(1, self.len * 2)
+                self.progressBar.setValue(0)
+                self.tableWidget.setRowCount(0)
+                self.tableWidget.setRowCount(self.len)
+                for i in range(self.len):
+                    self.tableWidget.setItem(i, 0, CostomTableWidgetItem(songids[i]))
+                self.brBox.setEnabled(False)
+                br = [180000, 320000, 999000][self.brBox.currentIndex()]
 
-        for i in range(self.len):
-            self.tableWidget.setItem(i, 0, CostomTableWidgetItem(songids[i]))
-            self.id2no[songids[i]] = i
-        # print(repr(songids))
-        cur_br = [180000, 320000, 999000][self.brBox.currentIndex()]
-        self.brBox.setEnabled(False)
-        self.mget = MultiTask()
-        self.songs_d = []
+                async def getEachDetail(params, id2no: dict):
+                    async with session.get(conf['baseURL'] + '/song/detail',params=params) as respones:
+                        res = await respones.json()
+                        for data in res['songs']:
+                            # log(id2no)
+                            no = id2no[str(data['id'])]
 
-        for i in range(0, len(self.songs), conf['maxLen']):
-            ids = ','.join(songids[i:i + conf['maxLen']])
-            # 获取音乐信息
-            # TODO!!!!!!!!!!!!!!!!!
-            get = RequestThread(conf['baseURL'] + '/song/detail', params={'ids': ids}, data={'no': i},
-                                NoCache=True)  # no：序号
-            get.success.connect(self._each)
-            self.mget.add(get)
-            # 获取音乐URL
-            get = RequestThread(conf['baseURL'] + '/song/url',
-                                params={
-                                    'id': ids,
-                                    'cookie': conf['cookie'],
-                                    'br': cur_br
-                                },
-                                data={'no': i},
-                                NoCache=True)
-            get.success.connect(self._each_url)
-            self.mget.add(get)
-        self.mget.final.connect(self.qDone)
-        self.mget.start()
-        '''
-        for i in range(self.len):
-            song = {'id': songids[i]}
-            # 获取音乐信息
-            get = Get(conf['baseURL'] + '/song/detail', params={'ids': song['id']}, data={'id': i})
-            get.success.connect(self._each)
-            self.mget.add(get)
-            # 获取音乐URL
-            get = Get(conf['baseURL'] + '/song/url', params={'id': song['id'], 'cookie': conf['cookie'], 'br': cur_br})
-            get.success.connect(self._each_url)
-            self.mget.add(get)
-        '''
+                            song = {
+                                'id': data['id'],
+                                'no': no + 1,
+                                'name': data['name'],
+                                'len': data['dt'] / 1000,
+                                'year': str(time.localtime(data['publishTime'] // 1000).tm_year),
+                                'album': data['al']['name'],
+                                'pic': data['al']['picUrl'],
+                                'filename': 'file',
+                                'artists': [ar['name'] for ar in data['ar']],
+                                'artist': '',
+                            }
+                            song['artist'] = ','.join(song['artists'])
+                            song['filename'] = fileStr(conf['patternStr'].format(**song))
 
-    # 单个歌曲信息回调函数
-    def _each(self, res):
-        for data in res['ret']['songs']:
-            no = self.id2no[str(data['id'])]
-            song = {
-                'id': data['id'],
-                'no': no + 1,
-                'name': data['name'],
-                'len': data['dt'] / 1000,
-                'year': str(time.localtime(data['publishTime'] // 1000).tm_year),
-                'album': data['al']['name'],
-                'pic': data['al']['picUrl'],
-                'filename': 'file',
-                'artists': [ar['name'] for ar in data['ar']],
-                'artist': '',
-            }
-            '''
-            for ar in data['ar']:
-                song['artists'].append(ar['name'])
-            '''
+                            self.songs[no].update(song)
 
-            song['artist'] = ','.join(song['artists'])
-            song['filename'] = fileStr(conf['patternStr'].format(**song))
+                            mapping = ['no', 'name', 'artist', 'album', 'len', 'filename']
+                            for j in range(len(mapping)):
+                                self.tableWidget.setItem(no, j + 1, CostomTableWidgetItem(song[mapping[j]]))
 
-            self.songs[no].update(song)
+                        self.progressBar.setValue(self.progressBar.value() + len(res['songs']))
+                        # self.showStatus('完成 音乐信息： ',doneNum)
 
-            mapping = ['no', 'name', 'artist', 'album', 'len', 'filename']
-            for j in range(len(mapping)):
-                self.tableWidget.setItem(no, j + 1, CostomTableWidgetItem(song[mapping[j]]))
+                async def getEachUrl(params, id2no: dict):
+                    async with session.get(conf['baseURL'] + '/song/url', params=params) as respones:
+                        res = await respones.json()
+                        for data in res['data']:
+                            no = id2no[str(data['id'])]
 
-        le = len(res['ret']['songs'])
-        self.done = self.done + le
-        self.progressBar.setValue(self.done)
-        self.statusBar().showMessage('完成 音乐信息： {0}-{1}'.format(res['data']['no'], res['data']['no'] + le))
+                            self.songs[no].update({'url': data['url'], 'br': data['br'], 'type': data['type']})
 
-    # 单个歌曲url回调函数
-    def _each_url(self, res):
-        for data in res['ret']['data']:
-            no = self.id2no[str(data['id'])]
-            # print(no,'!')
-            self.songs[no].update({'url': data['url'], 'br': data['br'], 'type': data['type']})
+                            self.tableWidget.setItem(no, 7, CostomTableWidgetItem(data['url']))
+                            self.tableWidget.setItem(no, 8, CostomTableWidgetItem(data['br']))
 
-            self.tableWidget.setItem(no, 7, CostomTableWidgetItem(data['url']))
-            self.tableWidget.setItem(no, 8, CostomTableWidgetItem(data['br']))
-            if self.songs[no]['type'] != None:
-                self.songs[no]['type'] = self.songs[no]['type'].lower()
-            self.tableWidget.setItem(no, 9, CostomTableWidgetItem(self.songs[no]['type']))
+                            if self.songs[no]['type']:
+                                self.songs[no]['type'] = self.songs[no]['type'].lower()
 
-        le = len(res['ret']['data'])
-        self.done = self.done + le
-        self.progressBar.setValue(self.done)
-        self.statusBar().showMessage('完成 URL： {0}-{1}'.format(res['data']['no'] + 1, res['data']['no'] + le))
+                            self.tableWidget.setItem(no, 9, CostomTableWidgetItem(self.songs[no]['type']))
+
+                            self.progressBar.setValue(self.progressBar.value() + len(res['data']))
+
+                L = conf['maxLen']
+                for i in range(0, len(self.songs), L):
+                    id2no = dict()
+                    for j in range(i,i + L):
+                        id2no[songids[j]] = j
+
+                    ids = ','.join(songids[i:i + L])
+                    params={'ids': ids}
+                    asyncio.ensure_future(getEachDetail(params, id2no), loop=loop)
+                    params={'id': ids, 'cookie': conf['cookie'],'br': br}
+                    asyncio.ensure_future(getEachUrl(params, id2no), loop=loop)
+
+
+        asyncio.ensure_future(get(url, params), loop=loop)
+                
 
     # 所有请求完成事件
     def qDone(self):
@@ -974,8 +918,9 @@ if __name__ == '__main__':
     async def initSession():
         global session
         session = aiohttp.ClientSession(loop=loop)
+
     asyncio.ensure_future(initSession(), loop=loop)
-    
+
     mainwin = MainWindow()
     mainwin.show()
     with loop:
