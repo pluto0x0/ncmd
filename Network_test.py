@@ -21,11 +21,12 @@ class MainWin(QWidget):
             url = 'http://falseknees.com'
             # url = 'https://api.github.com/users/pluto0x0'
             # url = 'http://myip.ipip.net'
+            # for i in range(10):
             async with session.get(url) as respones:
                 res = await respones.text()
                 print(res[:5])
                 print('time used:',time.time() - self.ass)
-                # self.label.setText(res[:50])
+                    # self.label.setText(res[:50])
 
         for i in range(10):  
             asyncio.ensure_future(get(), loop=loop)

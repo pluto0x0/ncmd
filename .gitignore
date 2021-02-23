@@ -18,3 +18,4 @@ dist/
 *.spec
 my.exe
 log/*.log
+*test.*
