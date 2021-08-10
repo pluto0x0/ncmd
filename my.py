@@ -50,7 +50,7 @@ CHECKS = [
 ]
 
 conf = {
-    'baseURL': 'http://app.yzzzf.xyz:3000',
+    'baseURL': 'https://netease-cloudmusic-api.vercel.app',
     'loginName': '',
     'cookie': '',
     'nickname': '',
