@@ -36,6 +36,8 @@ import hashlib
 import sys
 import platform
 import subprocess
+import datetime
+
 
 OS = platform.platform()
 print('OS: ', OS)
@@ -860,7 +862,7 @@ class MainWindow(QMainWindow, net.Ui_MainWindow):
                 'no': no + 1,
                 'name': data['name'],
                 'len': data['dt'] / 1000,
-                'year': str(time.localtime(data['publishTime'] // 1000).tm_year),
+                'year': str((datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=data['publishTime']//1000)).year),
                 'album': data['al']['name'],
                 'pic': data['al']['picUrl'],
                 'filename': 'file',
